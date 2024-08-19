@@ -42,20 +42,30 @@ def process_sheet(df, sheet_name, file_paths_B, file_paths_C, policy_option):
         df['Name'] = df['Name'].str.lower()
 
         # Remove specific titles from the 'Name' column
-        titles_to_remove = ['mr', 'mrs', 'master', 'dr', 'miss']
-        pattern = r'\b(?:' + '|'.join(re.escape(title) for title in titles_to_remove) + r')\b'
+        titles_to_remove = ['mr', 'mrs', 'master', 'dr', 'miss', 'ms']
+        pattern = r'\b(?:' + '|'.join(re.escape(title) + r'\.?' for title in titles_to_remove) + r')\b'
         df['Name'] = df['Name'].str.replace(pattern, '', regex=True)
 
-        # Remove special characters from the 'Name' column
-        special_chars_pattern = r'[!@#$%^&*()_+\-=\[\]{}\\|:";\'<>?,./1234567890]'
+        # Remove special characters from the 'Name' column, but keep periods
+        special_chars_pattern = r'[!@#$%^&*()_+\-=\[\]{}\\|:";\'<>?,/1234567890]'
         df['Name'] = df['Name'].str.replace(special_chars_pattern, '', regex=True)
-        
+
+        # Replace ellipsis characters with a space
+        df['Name'] = df['Name'].str.replace(r'\u2026', ' ', regex=True)
+
+        # Replace multiple periods with a single space
+        df['Name'] = df['Name'].str.replace(r'\.{2,}', ' ', regex=True)
+
+        # Replace single periods with a space
+        df['Name'] = df['Name'].str.replace(r'\.', ' ', regex=True)
+
         # Remove extra spaces
         df['Name'] = df['Name'].str.replace(r'\s+', ' ', regex=True)
 
         # Strip leading/trailing whitespace and title case the 'Name' column
         df['Name'] = df['Name'].str.strip().str.title()
-    
+
+
         # Clean the 'Relation' column
         df['Relation'] = df['Relation'].str.strip().str.title()
         
@@ -198,6 +208,15 @@ def process_sheet(df, sheet_name, file_paths_B, file_paths_C, policy_option):
 
             # Remove special characters from the 'Name' column
             comparison_df[name_column] = comparison_df[name_column].str.replace(special_chars_pattern, '', regex=True)
+            
+            # Replace ellipsis characters with a space
+            comparison_df[name_column] = comparison_df[name_column].str.replace(r'\u2026', ' ', regex=True)
+            
+            # Replace multiple periods with a single space
+            comparison_df[name_column] = comparison_df[name_column].str.replace(r'\.{2,}', ' ', regex=True)
+            
+            # Remove extra spaces
+            comparison_df[name_column] = comparison_df[name_column].str.replace(r'\s+', ' ', regex=True)
             
             # Remove extra spaces
             comparison_df[name_column] = comparison_df[name_column].str.replace(r'\s+', ' ', regex=True)
@@ -346,13 +365,41 @@ def process_sheet(df, sheet_name, file_paths_B, file_paths_C, policy_option):
                 return None, None, None, None, None, None, None, None, None, None, None
 
             df['User ID'], df['UHID'], df['Active'], df['Relationship'], df['DOB'], df['Gender'], df['Sum Insured'], df['Coverage Start Date'], df['Coverage End Date'], df['Phone'], df['Email'] = zip(*df['Temp_Column'].map(get_matching_info))
+            
+            # Get the unique 'Emp No' values from df
+            matched_emp_nos = df['Emp No'].unique()
 
+            # Bring in rows from comparison_df where "Emp No" exists in df but "Name" doesn't exist in df
+            additional_rows = comparison_df[comparison_df['Employee ID'].isin(matched_emp_nos) & ~comparison_df['Name'].isin(df['Name'])]
+
+            # Append the additional rows to df
+            df = pd.concat([df, additional_rows], ignore_index=True)
+            
+            # Append data from "Employee ID" to "Emp No"
+            df['Emp No'] = df['Emp No'].combine_first(df['Employee ID'])
+
+
+            # Delete the specified columns from df
+            columns_to_delete = ['Parent User ID', 'Policy ID', 'Policy Nick Name', 'Exception', 'Endo Cycle']
+            df.drop(columns=columns_to_delete, inplace=True)
+
+            
+            # Function to highlight duplicates in "Emp No" column
+            def highlight_duplicates(s):
+                is_duplicate = s.duplicated(keep=False)
+                return ['background-color: lightpink' if v else '' for v in is_duplicate]
+
+            # Apply the function to the "Emp No" column
+            df_styled = df.style.apply(highlight_duplicates, subset=['Emp No'])
+
+        # To display the styled DataFrame in a Jupyter Notebook
+        return df_styled, None
  
                 
     #-------------------------------------------------------------------------------------------------------------------------
     
         # End of Delete Process
-        return df, None
+        #return df, None
     
     #----------------------------------- Sheet Addition Function Begin ------------------------------------------------------
     
@@ -375,15 +422,24 @@ def process_sheet(df, sheet_name, file_paths_B, file_paths_C, policy_option):
     df['Name'] = df['Name'].str.lower()
 
     # Remove specific titles from the 'Name' column
-    titles_to_remove = ['mr', 'mrs', 'master', 'dr', 'miss']
-    pattern = r'\b(?:' + '|'.join(re.escape(title) for title in titles_to_remove) + r')\b'
+    titles_to_remove = ['mr', 'mrs', 'master', 'dr', 'miss', 'ms']
+    pattern = r'\b(?:' + '|'.join(re.escape(title) + r'\.?' for title in titles_to_remove) + r')\b'
     df['Name'] = df['Name'].str.replace(pattern, '', regex=True)
 
-    # Remove special characters from the 'Name' column
-    special_chars_pattern = r'[!@#$%^&*()_+\-=\[\]{}\\|:";\'<>?,./1234567890]'
+    # Remove special characters from the 'Name' column, but keep periods
+    special_chars_pattern = r'[!@#$%^&*()_+\-=\[\]{}\\|:";\'<>?,/1234567890]'
     df['Name'] = df['Name'].str.replace(special_chars_pattern, '', regex=True)
-    
-   # Remove extra spaces
+
+    # Replace ellipsis characters with a space
+    df['Name'] = df['Name'].str.replace(r'\u2026', ' ', regex=True)
+
+    # Replace multiple periods with a single space
+    df['Name'] = df['Name'].str.replace(r'\.{2,}', ' ', regex=True)
+
+    # Replace single periods with a space
+    df['Name'] = df['Name'].str.replace(r'\.', ' ', regex=True)
+
+    # Remove extra spaces
     df['Name'] = df['Name'].str.replace(r'\s+', ' ', regex=True)
 
     # Strip leading/trailing whitespace and title case the 'Name' column
@@ -706,6 +762,15 @@ def process_sheet(df, sheet_name, file_paths_B, file_paths_C, policy_option):
 
         # Remove special characters from the 'Name' column
         comparison_df[name_column] = comparison_df[name_column].str.replace(special_chars_pattern, '', regex=True)
+        
+        # Replace ellipsis characters with a space
+        comparison_df[name_column] = comparison_df[name_column].str.replace(r'\u2026', ' ', regex=True)
+        
+        # Replace multiple periods with a single space
+        comparison_df[name_column] = comparison_df[name_column].str.replace(r'\.{2,}', ' ', regex=True)
+        
+        # Remove extra spaces
+        comparison_df[name_column] = comparison_df[name_column].str.replace(r'\s+', ' ', regex=True)
         
         # Remove extra spaces
         comparison_df[name_column] = comparison_df[name_column].str.replace(r'\s+', ' ', regex=True)
