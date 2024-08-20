@@ -366,20 +366,35 @@ def process_sheet(df, sheet_name, file_paths_B, file_paths_C, policy_option):
 
             df['User ID'], df['UHID'], df['Active'], df['Relationship'], df['DOB'], df['Gender'], df['Sum Insured'], df['Coverage Start Date'], df['Coverage End Date'], df['Phone'], df['Email'] = zip(*df['Temp_Column'].map(get_matching_info))
             
-            # Get the unique 'Emp No' values from df
-            matched_emp_nos = df['Emp No'].unique()
+            
+            # Convert columns to string type once
+            df['Emp No'] = df['Emp No'].astype(str)
+            comparison_df[employee_id_column] = comparison_df[employee_id_column].astype(str)
+            
+            # Get the unique 'Emp No' values from df and convert to a set of strings
+            matched_emp_nos = set(df['Emp No'])
 
-            # Bring in rows from comparison_df where "Emp No" exists in df but "Name" doesn't exist in df
-            additional_rows = comparison_df[comparison_df['Employee ID'].isin(matched_emp_nos) & ~comparison_df['Name'].isin(df['Name'])]
+            # Convert comparison_df's employee_id_column to string
+            comparison_df[employee_id_column] = comparison_df[employee_id_column].astype(str)
+
+            # Log data types (optional)
+            print(f"Data type of df['Emp No']: {df['Emp No'].dtype}")
+            print(f"Data type of comparison_df[{employee_id_column}]: {comparison_df[employee_id_column].dtype}")
+
+            # Filter additional rows efficiently using set operations
+            additional_rows = comparison_df[
+                comparison_df[employee_id_column].isin(matched_emp_nos) & 
+                ~comparison_df[name_column].isin(df['Name'].values) & 
+                ~comparison_df['UHID'].isin(df['UHID'].values)
+            ]
 
             # Append the additional rows to df
             df = pd.concat([df, additional_rows], ignore_index=True)
-            
-            # Append data from "Employee ID" to "Emp No"
-            df['Emp No'] = df['Emp No'].combine_first(df['Employee ID'])
 
+            # Append data from "Employee ID" to "Emp No" using combine_first (preserves original Emp No if present)
+            df['Emp No'] = df['Emp No'].combine_first(df[employee_id_column])
 
-            # Delete the specified columns from df
+            # Drop specified columns in one go
             columns_to_delete = ['Parent User ID', 'Policy ID', 'Policy Nick Name', 'Exception', 'Endo Cycle']
             df.drop(columns=columns_to_delete, inplace=True)
 
@@ -394,12 +409,6 @@ def process_sheet(df, sheet_name, file_paths_B, file_paths_C, policy_option):
 
         # To display the styled DataFrame in a Jupyter Notebook
         return df_styled, None
- 
-                
-    #-------------------------------------------------------------------------------------------------------------------------
-    
-        # End of Delete Process
-        #return df, None
     
     #----------------------------------- Sheet Addition Function Begin ------------------------------------------------------
     
